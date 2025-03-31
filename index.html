@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>党员民主评议系统 - 信息技术部党支部</title>
+    <!-- 确保Bootstrap CSS正确加载 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 增强可见性样式 */
+        @media (max-width: 768px) {
+            .navbar span {
+                display: none;
+            }
+            .vote-table th, .vote-table td {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+            .btn-group label {
+                min-width: 60px;
+                font-size: 12px;
+            }
+            #submitVotes {
+                width: 100%;
+                padding: 8px;
+            }
+        }
+        .vote-table {
+            font-size: 14px;
+            background: white;
+        }
+        .vote-table th {
+            background: #f8f9fa;
+            position: sticky;
+            left: 0;
+        }
+        .btn-group label {
+            min-width: 80px;
+            font-size: 13px;
+        }
+        .table-responsive {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .voting-area {
+            display: block;
+        }
+        .voting-area.submitted {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar bg-primary text-white">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">信息技术部党支部 - 民主评议系统</span>
+            <span>党员人数：54人</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4" id="mainContainer">
+        <!-- 统计面板 -->
+        <div class="statistics-card mb-4">
+            <h4 class="mb-3"><i class="bi bi-bar-chart"></i> 实时统计</h4>
+            <div id="statistics" class="row g-3"></div>
+            <!-- 排序显示区域 -->
+            <div id="sorted-members" class="mt-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">优秀</div>
+                            <div class="card-body" id="excellent-members"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">合格</div>
+                            <div class="card-body" id="qualified-members"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-white">基本合格</div>
+                            <div class="card-body" id="basic-qualified-members"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-danger">
+                            <div class="card-header bg-danger text-white">不合格</div>
+                            <div class="card-body" id="unqualified-members"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 显眼的操作提示 -->
+        <div class="alert alert-info alert-dismissible fade show">
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <h4 class="alert-heading"><i class="bi bi-info-circle"></i> 操作指南</h4>
+            <ol>
+                <li>向下滚动查看所有党员名单</li>
+                <li>点击姓名右侧的评议等级进行选择（单选）</li>
+                <li>优秀票数限额显示在统计栏红色数字处</li>
+            </ol>
+        </div>
+
+        <!-- 投票表格 -->
+        <div class="voting-area">
+            <div class="table-responsive" style="max-height: 70vh;">
+                <table class="table table-bordered table-hover vote-table">
+                    <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
+                        <tr>
+                            <th style="width: 60px; min-width: 60px;">序号</th>
+                            <th style="min-width: 100px;">党员姓名</th>
+                            <th style="min-width: 300px;">评议选项</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 动态生成内容 -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center mt-4 mb-4">
+                <button id="submitVotes" class="btn btn-primary btn-lg">完成评议</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminLogin" style="position: absolute; top: 70px; right: 20px; width: 250px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h5 class="text-center mb-2" style="font-size: 16px;">管理员登录</h5>
+        <div class="form-group mb-2">
+            <input type="text" class="form-control form-control-sm" id="username" placeholder="用户名">
+        </div>
+        <div class="form-group mb-3">
+            <input type="password" class="form-control form-control-sm" id="password" placeholder="密码">
+        </div>
+        <button id="loginBtn" class="btn btn-primary btn-sm btn-block">登录</button>
+    </div>
+
+    <div id="adminPanel" style="display:none; position: absolute; top: 70px; right: 20px; width: 250px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 class="text-center">管理面板</h3>
+        <button id="resetVotesBtn" class="btn btn-danger btn-block mb-3">重置投票数据</button>
+        <div class="alert alert-info">
+            当前投票状态: <span id="voteStatus"></span>
+        </div>
+    </div>
+
+    <script>
+        let members = [];
+
+        // 从服务器获取数据
+        async function fetchVotingData() {
+            try {
+                const response = await fetch('http://localhost:8081/api/votes');
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                return { votes: {}, submitted: false, members: [] };
+            }
+        }
+
+        // 初始化数据
+        async function initStorage() {
+            const data = await fetchVotingData();
+            members = data.members; // 更新党员名单
+            
+            // 根据submitted状态更新UI
+            if (data.submitted) {
+                document.querySelector('.voting-area').classList.add('submitted');
+            } else {
+                document.querySelector('.voting-area').classList.remove('submitted');
+            }
+        }
+
+        // 生成可见的投票界面
+        async function renderUI() {
+            const data = await fetchVotingData();
+            const votes = data.votes;
+            const tbody = document.querySelector('tbody');
+            
+            // 生成表格内容
+            tbody.innerHTML = members.map((name, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="fw-bold">${name}</td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            ${['优秀', '合格', '基本合格', '不合格'].map(level => `
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" 
+                                           type="radio" 
+                                           name="${name}" 
+                                           id="${name}-${level}" 
+                                           value="${level}"
+                                           ${votes[name] === level ? 'checked' : ''}>
+                                    <label class="form-check-label" for="${name}-${level}">
+                                        ${level}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            // 更新统计
+            await updateStatistics();
+        }
+
+        // 增强统计显示
+        async function updateStatistics() {
+            const data = await fetchVotingData();
+            const votes = data.votes;
+            const counts = { 优秀: 0, 合格: 0, 基本合格: 0, 不合格: 0 };
+            const membersByLevel = { 优秀: [], 合格: [], 基本合格: [], 不合格: [] };
+            
+            members.forEach(name => {
+                const level = votes[name];
+                if(level) {
+                    counts[level]++;
+                    membersByLevel[level].push(name);
+                }
+            });
+
+            // 计算每个人的得票数
+            const voteCounts = {};
+            members.forEach(name => {
+                const level = votes[name];
+                if (level) {
+                    voteCounts[name] = (voteCounts[name] || 0) + 1;
+                }
+            });
+
+            // 对每个等级的名单按照得票数从高到低排序
+            Object.keys(membersByLevel).forEach(level => {
+                membersByLevel[level].sort((a, b) => (voteCounts[b] || 0) - (voteCounts[a] || 0));
+            });
+
+            // 更新数字统计
+            document.getElementById('statistics').innerHTML = `
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <h5 class="card-title">优秀</h5>
+                            <p class="card-text display-6 ${counts.优秀 > 18 ? 'text-danger' : 'text-success'}">
+                                ${counts.优秀}
+                                <small class="text-muted">/18</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">合格</h5>
+                            <p class="card-text display-6 text-primary">${counts.合格}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body">
+                            <h5 class="card-title">基本合格</h5>
+                            <p class="card-text display-6 text-warning">${counts.基本合格}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-danger">
+                        <div class="card-body">
+                            <h5 class="card-title">不合格</h5>
+                            <p class="card-text display-6 text-danger">${counts.不合格}</p>
+                        </div>
+                    </div>
+                </div>`;
+
+            // 更新排序后的名单显示（包含得票数）
+            const formatMemberList = (memberList) => {
+                if (memberList.length === 0) return '<small class="text-muted">暂无</small>';
+                return memberList.map(name => 
+                    `${name} <span class="badge bg-secondary">${voteCounts[name] || 0}票</span>`
+                ).join('<br>');
+            };
+
+            document.getElementById('excellent-members').innerHTML = formatMemberList(membersByLevel.优秀);
+            document.getElementById('qualified-members').innerHTML = formatMemberList(membersByLevel.合格);
+            document.getElementById('basic-qualified-members').innerHTML = formatMemberList(membersByLevel.基本合格);
+            document.getElementById('unqualified-members').innerHTML = formatMemberList(membersByLevel.不合格);
+        }
+
+        // 事件监听
+        document.addEventListener('change', async (e) => {
+            if(e.target.matches('input[type="radio"]') && !document.querySelector('.voting-area').classList.contains('submitted')) {
+                const name = e.target.name;
+                const level = e.target.value;
+                
+                try {
+                    const response = await fetch('/api/votes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name, level })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('投票失败');
+                    }
+                    
+                    await updateStatistics();
+                } catch (error) {
+                    console.error('提交投票失败:', error);
+                    alert('提交投票失败，请重试');
+                }
+            }
+        });
+
+        // 提交投票
+        document.getElementById('submitVotes').addEventListener('click', async () => {
+            const data = await fetchVotingData();
+            const votes = data.votes;
+            
+            // 检查未投票的党员
+            const unvotedMembers = members.filter(name => {
+                const voteValue = votes[name];
+                return !voteValue || voteValue.trim() === '';
+            });
+
+            if (unvotedMembers.length > 0) {
+                const message = `还有${unvotedMembers.length}名党员未评议：\n${unvotedMembers.join('、')}`;                alert(message);
+                return;
+            }
+
+            const confirmMessage = '确认提交评议结果？提交后将无法修改。';
+            if (confirm(confirmMessage)) {
+                try {
+                    const response = await fetch('/api/submit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('提交失败');
+                    }
+                    
+                    document.querySelector('.voting-area').classList.add('submitted');
+                    // 禁用所有评议选项
+                    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                        radio.disabled = true;
+                    });
+                    alert('评议已完成！');
+                    await renderUI(); // 重新渲染UI以反映提交状态
+                } catch (error) {
+                    console.error('提交失败:', error);
+                    alert('提交失败，请重试');
+                }
+            }
+        });
+
+        // 管理员登录
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(username + ':' + password),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.status === 401) {
+                    throw new Error('用户名或密码错误');
+                }
+                
+                if (response.ok) {
+                    document.getElementById('adminLogin').style.display = 'none';
+                    document.getElementById('adminPanel').style.display = 'block';
+                    updateVoteStatus();
+                } else {
+                    throw new Error('登录失败');
+                }
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+        
+        // 重置投票数据
+        document.getElementById('resetVotesBtn').addEventListener('click', async () => {
+            if (confirm('确定要重置所有投票数据吗？此操作不可撤销。')) {
+                try {
+                    const response = await fetch('/api/reset', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Basic ' + btoa('admin:123456'),
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('重置失败');
+                    }
+                    
+                    alert('投票数据已重置');
+                    await initStorage();
+                    await renderUI();
+                    updateVoteStatus();
+                } catch (error) {
+                    alert(error.message);
+                }
+            }
+        });
+        
+        // 更新投票状态显示
+        async function updateVoteStatus() {
+            const data = await fetchVotingData();
+            document.getElementById('voteStatus').textContent = data.submitted ? '已结束' : '进行中';
+        }
+        
+        // 显示管理员登录入口
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'm') {
+                document.getElementById('adminLogin').style.display = 'block';
+            }
+        });
+        
+        // 初始化执行
+        initStorage().then(() => renderUI());
+    </script>
+</body>
+</html>
